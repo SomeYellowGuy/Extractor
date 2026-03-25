@@ -5,6 +5,7 @@ import com.google.gson.JsonObject
 import com.mojang.serialization.JsonOps
 import de.snowii.extractor.Extractor
 import net.minecraft.component.ComponentMap
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.item.Item
 import net.minecraft.registry.Registries
 import net.minecraft.registry.RegistryKeys
@@ -25,7 +26,7 @@ class Items : Extractor.Extractor {
             val itemJson = JsonObject()
             val realItem: Item = item.value()
 
-            itemJson.addProperty("id", Registries.ITEM.getRawId(realItem))
+            itemJson.addProperty("id", BuiltInRegistries.ITEM.getId(realItem))
             itemJson.add(
                 "components",
                 ComponentMap.CODEC.encodeStart(

@@ -8,6 +8,7 @@ import net.minecraft.registry.RegistryKeys
 import net.minecraft.registry.RegistryOps
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.gen.feature.PlacedFeature
+import net.minecraft.world.level.levelgen.placement.PlacedFeature
 
 class PlacedFeatures : Extractor.Extractor {
     override fun fileName(): String {
@@ -22,7 +23,7 @@ class PlacedFeatures : Extractor.Extractor {
             finalJson.add(
                 registry.getId(setting)!!.path,
                 PlacedFeature.CODEC.encodeStart(
-                    RegistryOps.of(JsonOps.INSTANCE, server.registryManager),
+                    JsonOps.INSTANCE,
                     setting
                 ).getOrThrow()
             )

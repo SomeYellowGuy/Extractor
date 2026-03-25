@@ -4,9 +4,8 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.mojang.serialization.JsonOps
 import de.snowii.extractor.Extractor
-import net.minecraft.recipe.Recipe
-import net.minecraft.registry.RegistryOps
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.item.crafting.Recipe
 
 class Recipes : Extractor.Extractor {
     override fun fileName(): String {
@@ -16,11 +15,11 @@ class Recipes : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val recipesJson = JsonArray()
 
-        for (recipeRaw in server.recipeManager.values()) {
+        for (recipeRaw in server.recipeManager.recipes) {
             val recipe = recipeRaw.value
             recipesJson.add(
                 Recipe.CODEC.encodeStart(
-                    RegistryOps.of(JsonOps.INSTANCE, server.registryManager),
+                    JsonOps.INSTANCE,
                     recipe
                 ).getOrThrow()
             )

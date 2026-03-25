@@ -55,7 +55,6 @@ class Extractor : ModInitializer {
             EntityPose(),
             GameEvent(),
             GameRules(),
-            SpawnEgg(),
             SyncedRegistries(),
             ChunkGenSetting(),
             Packets(),
@@ -191,7 +190,6 @@ class Extractor : ModInitializer {
                 }
             }
             logger.info("Done, took ${timeInMillis}ms")
-            server.stop(false)
         })
     }
 

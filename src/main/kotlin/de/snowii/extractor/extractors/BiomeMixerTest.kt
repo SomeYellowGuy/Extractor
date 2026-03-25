@@ -4,10 +4,6 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import de.snowii.extractor.Extractor
 import net.minecraft.server.MinecraftServer
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.MathHelper
-import net.minecraft.world.biome.source.BiomeAccess
-import net.minecraft.world.biome.source.SeedMixer
 
 class BiomeMixerTest : Extractor.Extractor {
     override fun fileName(): String {

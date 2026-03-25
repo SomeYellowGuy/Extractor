@@ -14,7 +14,7 @@ class GameEvent : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val gameEventJson = JsonArray()
         val gameEventTypeRegistry =
-            server.registryManager.getOrThrow(RegistryKeys.GAME_EVENT)
+            server.registryAccess().get(RegistryKeys.GAME_EVENT)
         for (event in gameEventTypeRegistry) {
             gameEventJson.add(
                 gameEventTypeRegistry.getId(event)!!.path,

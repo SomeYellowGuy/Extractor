@@ -22,7 +22,7 @@ class ChunkGenSetting : Extractor.Extractor {
             finalJson.add(
                 registry.getId(setting)!!.path,
                 ChunkGeneratorSettings.CODEC.encodeStart(
-                    RegistryOps.of(JsonOps.INSTANCE, server.registryManager),
+                    JsonOps.INSTANCE,
                     setting
                 ).getOrThrow()
             )

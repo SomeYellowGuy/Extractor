@@ -1,12 +1,11 @@
-package de.snowii.extractor.extractors
+package de.snowii.extractor.extractors.non_registry
 
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import de.snowii.extractor.Extractor
-import net.minecraft.block.ComposterBlock
-import net.minecraft.registry.Registries
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.level.block.ComposterBlock
 
 class ComposterIncreaseChance : Extractor.Extractor {
     override fun fileName(): String {

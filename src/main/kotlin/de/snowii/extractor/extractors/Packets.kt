@@ -5,9 +5,6 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import de.snowii.extractor.Extractor
 import net.minecraft.SharedConstants
-import net.minecraft.network.NetworkPhase
-import net.minecraft.network.packet.PacketType
-import net.minecraft.network.state.*
 import net.minecraft.server.MinecraftServer
 
 

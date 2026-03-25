@@ -4,10 +4,8 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.mojang.serialization.JsonOps
 import de.snowii.extractor.Extractor
-import net.minecraft.registry.RegistryKeys
-import net.minecraft.registry.RegistryOps
 import net.minecraft.server.MinecraftServer
-import net.minecraft.world.biome.Biome
+import net.minecraft.world.level.biome.Biome
 
 class Biome : Extractor.Extractor {
     override fun fileName(): String {
@@ -20,10 +18,10 @@ class Biome : Extractor.Extractor {
             server.registryManager.getOrThrow(RegistryKeys.BIOME)
         for (biome in biomeRegistry) {
             val json = Biome.CODEC.encodeStart(
-                RegistryOps.of(JsonOps.INSTANCE, server.registryManager),
+                JsonOps.INSTANCE,
                 biome
             ).getOrThrow().asJsonObject
-            json.addProperty("id", biomeRegistry.getRawId(biome))
+            json.addProperty("id", biomeRegistry.getId(biome))
             biomeData.add(
                 biomeRegistry.getId(biome)!!.path, json
             )

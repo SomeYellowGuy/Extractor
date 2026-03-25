@@ -39,7 +39,6 @@ Extractor is a Fabric mod that extracts Minecraft data (blocks, items, entities,
 - [x] DialogBodyType
 
 ### Running
-- Gradle >= 9.1.0
 
 1. Clone the repo
 2. run `./gradlew runServer` or alternatively `./gradle runClient` (Join World)

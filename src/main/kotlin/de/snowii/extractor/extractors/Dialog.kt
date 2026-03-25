@@ -20,7 +20,7 @@ class Dialog : Extractor.Extractor {
             server.registryManager.getOrThrow(RegistryKeys.DIALOG)
         for (dialog in registry) {
             val sub = Dialog.CODEC.encodeStart(
-                RegistryOps.of(JsonOps.INSTANCE, server.registryManager), dialog
+                JsonOps.INSTANCE, dialog
             ).getOrThrow() as JsonObject
             sub.addProperty("id", registry.getRawId(dialog))
             finalJson.add(

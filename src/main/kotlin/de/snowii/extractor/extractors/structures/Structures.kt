@@ -4,10 +4,8 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.mojang.serialization.JsonOps
 import de.snowii.extractor.Extractor
-import net.minecraft.registry.RegistryKeys
-import net.minecraft.registry.RegistryOps
 import net.minecraft.server.MinecraftServer
-import net.minecraft.world.gen.structure.Structure
+import net.minecraft.world.level.levelgen.structure.Structure
 
 class Structures : Extractor.Extractor {
     override fun fileName(): String {

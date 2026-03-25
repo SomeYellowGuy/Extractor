@@ -8,6 +8,7 @@ import net.minecraft.enchantment.Enchantment
 import net.minecraft.registry.RegistryKeys
 import net.minecraft.registry.RegistryOps
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.item.enchantment.Enchantment
 
 class Enchantments : Extractor.Extractor {
     override fun fileName(): String {
@@ -20,7 +21,7 @@ class Enchantments : Extractor.Extractor {
             server.registryManager.getOrThrow(RegistryKeys.ENCHANTMENT)
         for (enchantment in registry) {
             val sub = Enchantment.CODEC.encodeStart(
-                RegistryOps.of(JsonOps.INSTANCE, server.registryManager), enchantment
+                JsonOps.INSTANCE, enchantment
             ).getOrThrow() as JsonObject
             sub.addProperty("id", registry.getRawId(enchantment))
             finalJson.add(

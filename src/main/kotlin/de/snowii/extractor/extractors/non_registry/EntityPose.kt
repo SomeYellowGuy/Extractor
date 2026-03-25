@@ -3,8 +3,8 @@ package de.snowii.extractor.extractors.non_registry
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import de.snowii.extractor.Extractor
-import net.minecraft.entity.EntityPose
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.entity.Pose
 
 class EntityPose : Extractor.Extractor {
     override fun fileName(): String {
@@ -13,11 +13,12 @@ class EntityPose : Extractor.Extractor {
 
     override fun extract(server: MinecraftServer): JsonElement {
         val poseesJson = JsonArray()
-        for (pose in EntityPose.entries) {
+        for (pose in Pose.entries) {
             poseesJson.add(
                 pose.name,
             )
         }
+
 
         return poseesJson
     }

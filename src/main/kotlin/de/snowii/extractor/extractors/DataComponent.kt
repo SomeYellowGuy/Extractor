@@ -3,6 +3,7 @@ package de.snowii.extractor.extractors
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import de.snowii.extractor.Extractor
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.registry.Registries
 import net.minecraft.registry.RegistryKeys
 import net.minecraft.server.MinecraftServer
@@ -15,9 +16,9 @@ class DataComponent : Extractor.Extractor {
 
     override fun extract(server: MinecraftServer): JsonElement {
         val dataComponentJson = JsonObject()
-        val list = server.registryManager.getOrThrow(RegistryKeys.DATA_COMPONENT_TYPE).streamEntries().toList();
+        val list = BuiltInRegistries.DATA_COMPONENT_TYPE.stream().toList();
         for (item in list) {
-            dataComponentJson.addProperty(item.value().toString(), Registries.DATA_COMPONENT_TYPE.getRawId(item.value()));
+            dataComponentJson.addProperty(item.toString(), BuiltInRegistries.DATA_COMPONENT_TYPE.getId(item));
         }
         return dataComponentJson
     }

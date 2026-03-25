@@ -5,7 +5,6 @@ import com.google.gson.JsonObject
 import com.mojang.serialization.Codec
 import com.mojang.serialization.JsonOps
 import de.snowii.extractor.Extractor
-import net.minecraft.registry.*
 import net.minecraft.server.MinecraftServer
 import java.util.stream.Stream
 
