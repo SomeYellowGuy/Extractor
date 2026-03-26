@@ -3,7 +3,7 @@ package de.snowii.extractor.extractors
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import de.snowii.extractor.Extractor
-import net.minecraft.registry.RegistryKeys
+import net.minecraft.core.registries.Registries
 import net.minecraft.server.MinecraftServer
 
 class DialogBodyType : Extractor.Extractor {
@@ -13,11 +13,12 @@ class DialogBodyType : Extractor.Extractor {
 
     override fun extract(server: MinecraftServer): JsonElement {
         val dialogBodyJson = JsonObject()
-        val registry = server.registryManager.getOrThrow(RegistryKeys.DIALOG_BODY_TYPE)
+        val registry =
+            server.registryAccess().getOrThrow(Registries.DIALOG_BODY_TYPE).value()
 
-        for (dialogType in registry.streamEntries().toList()) {
-            val id = registry.getId(dialogType.value())
-            dialogBodyJson.addProperty(id.toString(), registry.getRawId(dialogType.value()))
+        for (dialogType in registry.stream()) {
+            val id = registry.getId(dialogType)
+            dialogBodyJson.addProperty(id.toString(), registry.getId(dialogType))
         }
 
         return dialogBodyJson

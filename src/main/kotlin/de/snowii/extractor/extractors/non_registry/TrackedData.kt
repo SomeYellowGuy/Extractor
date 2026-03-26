@@ -3,10 +3,11 @@ package de.snowii.extractor.extractors.non_registry
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import de.snowii.extractor.Extractor
-import net.minecraft.entity.Entity
-import net.minecraft.entity.data.TrackedData
-import net.minecraft.registry.Registries
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.network.syncher.EntityDataAccessor
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.EntitySpawnReason
 
 class TrackedData : Extractor.Extractor {
     override fun fileName(): String {
@@ -14,12 +15,12 @@ class TrackedData : Extractor.Extractor {
     }
 
     override fun extract(server: MinecraftServer): JsonElement {
-        val world = server.overworld
+        val world = server.overworld()
         val result = JsonObject()
 
-        Registries.ENTITY_TYPE.forEach { entityType ->
+        BuiltInRegistries.ENTITY_TYPE.forEach { entityType ->
             val entityInstance: Entity? = try {
-                entityType.create(world, null)
+                entityType.create(world, EntitySpawnReason.NATURAL)
             } catch (e: Exception) {
                 null
             }
@@ -32,7 +33,7 @@ class TrackedData : Extractor.Extractor {
                         if (field.type == TrackedData::class.java) {
                             try {
                                 field.isAccessible = true
-                                val trackedData = field.get(null) as TrackedData<*>
+                                val trackedData = field.get(null) as EntityDataAccessor<*>
 
                                 result.addProperty(field.name, trackedData.id())
                             } catch (e: Exception) {

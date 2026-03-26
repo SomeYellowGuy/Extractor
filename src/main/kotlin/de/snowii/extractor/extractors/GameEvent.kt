@@ -3,7 +3,7 @@ package de.snowii.extractor.extractors
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import de.snowii.extractor.Extractor
-import net.minecraft.registry.RegistryKeys
+import net.minecraft.core.registries.Registries
 import net.minecraft.server.MinecraftServer
 
 class GameEvent : Extractor.Extractor {
@@ -13,11 +13,11 @@ class GameEvent : Extractor.Extractor {
 
     override fun extract(server: MinecraftServer): JsonElement {
         val gameEventJson = JsonArray()
-        val gameEventTypeRegistry =
-            server.registryAccess().get(RegistryKeys.GAME_EVENT)
-        for (event in gameEventTypeRegistry) {
+        val registry =
+            server.registryAccess().getOrThrow(Registries.GAME_EVENT).value()
+        for (event in registry) {
             gameEventJson.add(
-                gameEventTypeRegistry.getId(event)!!.path,
+                registry.getKey(event)!!.path,
             )
         }
 

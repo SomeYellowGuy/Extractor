@@ -5,6 +5,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import de.snowii.extractor.Extractor
 import net.minecraft.server.MinecraftServer
+import net.minecraft.tags.TagNetworkSerialization
 
 
 class Tags : Extractor.Extractor {
@@ -15,24 +16,27 @@ class Tags : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val tagsJson = JsonObject()
 
-        val tags = TagPacketSerializer.serializeTags(server.combinedDynamicRegistries)
+        val layeredRegistries = server.registries()
+        val registryAccess = layeredRegistries.compositeAccess()
+        val tags = TagNetworkSerialization.serializeTagsToNetwork(layeredRegistries)
 
-        for (tag in tags.entries) {
+        for ((registryKey, networkPayload) in tags) {
             val tagGroupTagsJson = JsonObject()
-            val tagValues =
-                tag.value.toRegistryTags(server.combinedDynamicRegistries.combinedRegistryManager.getOrThrow(tag.key))
-            for (value in tagValues.tags) {
+            val registry = registryAccess.lookupOrThrow(registryKey)
+            val resolvedTags = networkPayload.resolve(registry)
+
+            for ((tagKey, holders) in resolvedTags.tags) {
                 val tagGroupTagsJsonArray = JsonArray()
-                for (tagVal in value.value) {
-                    tagGroupTagsJsonArray.add(tagVal.key.orElseThrow().value.path)
+                for (holder in holders) {
+                    tagGroupTagsJsonArray.add(
+                        holder.unwrapKey().orElseThrow().identifier().path
+                    )
                 }
-                tagGroupTagsJson.add(value.key.id.toString(), tagGroupTagsJsonArray)
+                tagGroupTagsJson.add(tagKey.location().toString(), tagGroupTagsJsonArray)
             }
-            tagsJson.add(tag.key.value.path, tagGroupTagsJson)
+            tagsJson.add(registryKey.identifier().path, tagGroupTagsJson)
         }
 
         return tagsJson
     }
-
-
 }

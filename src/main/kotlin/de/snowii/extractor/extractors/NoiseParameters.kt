@@ -4,10 +4,9 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.mojang.serialization.JsonOps
 import de.snowii.extractor.Extractor
-import net.minecraft.registry.RegistryKeys
-import net.minecraft.registry.RegistryOps
+import net.minecraft.core.registries.Registries
 import net.minecraft.server.MinecraftServer
-import net.minecraft.util.math.noise.DoublePerlinNoiseSampler
+import net.minecraft.world.level.levelgen.synth.NormalNoise
 
 class NoiseParameters : Extractor.Extractor {
     override fun fileName(): String {
@@ -16,15 +15,14 @@ class NoiseParameters : Extractor.Extractor {
 
     override fun extract(server: MinecraftServer): JsonElement {
         val noisesJson = JsonObject()
-        val noiseParameterRegistry =
-            server.registryManager.getOrThrow(RegistryKeys.NOISE_PARAMETERS)
-        for (noise in noiseParameterRegistry) {
+        val registryAccess = server.registries().compositeAccess()
+        val ops = registryAccess.createSerializationContext(JsonOps.INSTANCE)
+        val registry = registryAccess.lookupOrThrow(Registries.NOISE)
+
+        registry.asHolderIdMap().forEach { entry ->
             noisesJson.add(
-                noiseParameterRegistry.getId(noise)!!.path,
-                DoublePerlinNoiseSampler.NoiseParameters.CODEC.encodeStart(
-                    RegistryOps.of(JsonOps.INSTANCE, server.registryManager),
-                    noise
-                ).getOrThrow()
+                entry.unwrapKey().get().identifier().path,
+                NormalNoise.NoiseParameters.DIRECT_CODEC.encodeStart(ops, entry.value()).orThrow
             )
         }
 

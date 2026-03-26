@@ -4,11 +4,14 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import de.snowii.extractor.Extractor
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.item.Item
 import net.minecraft.item.ItemStack
 import net.minecraft.registry.Registries
 import net.minecraft.registry.RegistryKeys
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.item.Item
+import net.minecraft.world.item.ItemStack
 
 class RecipeRemainder : Extractor.Extractor  {
     override fun fileName(): String {
@@ -18,17 +21,17 @@ class RecipeRemainder : Extractor.Extractor  {
     override fun extract(server: MinecraftServer): JsonElement {
         val recipeRemainderJson = JsonObject()
 
-        for (item in server.registryManager.getOrThrow(RegistryKeys.ITEM).streamEntries().toList()) {
-            val realItem: Item = item.value()
-            val remainder = realItem.recipeRemainder;
+        for (item in BuiltInRegistries.ITEM.stream()) {
+            val realItem: Item = item
+            val remainder = realItem.craftingRemainder;
             if (remainder == ItemStack.EMPTY) {
                 continue
             }
 
 
             recipeRemainderJson.add(
-                Registries.ITEM.getRawId(realItem).toString(),
-                JsonPrimitive(Registries.ITEM.getRawId(remainder.item)),
+                BuiltInRegistries.ITEM.getId(realItem).toString(),
+                JsonPrimitive(BuiltInRegistries.ITEM.getId(remainder.item)),
             )
 
         }

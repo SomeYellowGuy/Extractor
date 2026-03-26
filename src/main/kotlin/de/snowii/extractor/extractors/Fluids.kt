@@ -4,9 +4,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import de.snowii.extractor.Extractor
-import net.minecraft.block.Block
 import net.minecraft.core.registries.BuiltInRegistries
-import net.minecraft.registry.Registries
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.block.Block
 
@@ -26,15 +24,12 @@ class Fluids : Extractor.Extractor {
             val propsJson = JsonArray()
             for (prop in fluid.stateDefinition.properties) {
                 val propJson = JsonObject()
-
                 propJson.addProperty("name", prop.name)
-
                 val valuesJson = JsonArray()
-                for (value in prop.values) {
+                for (value in prop.possibleValues) {
                     valuesJson.add(value.toString().lowercase())
                 }
                 propJson.add("values", valuesJson)
-
                 propsJson.add(propJson)
             }
             fluidJson.add("properties", propsJson)
@@ -43,12 +38,11 @@ class Fluids : Extractor.Extractor {
             for ((index, state) in fluid.stateDefinition.possibleStates.withIndex()) {
                 val stateJson = JsonObject()
                 stateJson.addProperty("height", state.ownHeight)
-                stateJson.addProperty("level", state.level)
+                stateJson.addProperty("level", state.amount)
                 stateJson.addProperty("is_empty", state.isEmpty)
                 stateJson.addProperty("blast_resistance", state.blastResistance)
                 stateJson.addProperty("block_state_id", Block.getId(state.createLegacyBlock()))
-                stateJson.addProperty("is_still", state.isStill)
-                // TODO: Particle effects
+                stateJson.addProperty("is_still", state.isSource)
 
                 if (fluid.defaultFluidState() == state) {
                     fluidJson.addProperty("default_state_index", index)

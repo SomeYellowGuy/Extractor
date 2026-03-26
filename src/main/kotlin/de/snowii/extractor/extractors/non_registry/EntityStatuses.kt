@@ -3,7 +3,6 @@ package de.snowii.extractor.extractors.non_registry
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import de.snowii.extractor.Extractor
-import net.minecraft.entity.EntityStatuses
 import net.minecraft.server.MinecraftServer
 
 class EntityStatuses : Extractor.Extractor {

@@ -1,3 +1,4 @@
+/* :cry:
 package de.snowii.extractor.extractors
 
 import com.google.gson.JsonArray
@@ -213,3 +214,4 @@ class BiomeDumpTests : Extractor.Extractor {
         }
     }
 }
+*/

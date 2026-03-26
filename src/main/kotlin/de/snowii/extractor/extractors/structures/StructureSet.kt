@@ -4,10 +4,9 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.mojang.serialization.JsonOps
 import de.snowii.extractor.Extractor
-import net.minecraft.registry.RegistryKeys
-import net.minecraft.registry.RegistryOps
+import net.minecraft.core.registries.Registries
 import net.minecraft.server.MinecraftServer
-import net.minecraft.structure.StructureSet
+import net.minecraft.world.level.levelgen.structure.StructureSet
 
 class StructureSet : Extractor.Extractor {
     override fun fileName(): String {
@@ -17,12 +16,12 @@ class StructureSet : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val finalJson = JsonObject()
         val registry =
-            server.registryManager.getOrThrow(RegistryKeys.STRUCTURE_SET)
+            server.registryAccess().getOrThrow(Registries.STRUCTURE_SET).value()
         for (setting in registry) {
             finalJson.add(
-                registry.getId(setting)!!.path,
-                StructureSet.CODEC.encodeStart(
-                    RegistryOps.of(JsonOps.INSTANCE, server.registryManager),
+                registry.getKey(setting)!!.path,
+                StructureSet.DIRECT_CODEC.encodeStart(
+                    JsonOps.INSTANCE,
                     setting
                 ).getOrThrow()
             )

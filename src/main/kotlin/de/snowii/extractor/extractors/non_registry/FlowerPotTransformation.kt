@@ -4,6 +4,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import de.snowii.extractor.Extractor
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.level.block.FlowerPotBlock
 
@@ -15,10 +16,10 @@ class FlowerPotTransformation : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val flowerPotsJson = JsonObject()
         for ((block, pottedBlock) in FlowerPotBlock.POTTED_BY_CONTENT){
-            if (Registries.BLOCK.getRawId(block) == 0) continue
+            if (BuiltInRegistries.BLOCK.getId(block) == 0) continue
             flowerPotsJson.add(
-                Registries.ITEM.getRawId(block.asItem()!!).toString(),
-                JsonPrimitive(Registries.BLOCK.getRawId(pottedBlock)))
+                BuiltInRegistries.ITEM.getId(block.asItem()).toString(),
+                JsonPrimitive(BuiltInRegistries.BLOCK.getId(pottedBlock)))
         }
 
         return flowerPotsJson

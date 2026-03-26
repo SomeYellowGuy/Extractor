@@ -5,8 +5,10 @@ import com.google.gson.JsonObject
 import com.mojang.serialization.Codec
 import com.mojang.serialization.JsonOps
 import de.snowii.extractor.Extractor
+import net.minecraft.core.Registry
+import net.minecraft.resources.RegistryDataLoader
 import net.minecraft.server.MinecraftServer
-import java.util.stream.Stream
+import net.minecraft.resources.ResourceKey
 
 
 class SyncedRegistries : Extractor.Extractor {
@@ -15,35 +17,28 @@ class SyncedRegistries : Extractor.Extractor {
     }
 
     override fun extract(server: MinecraftServer): JsonElement {
-        val registries: Stream<RegistryLoader.Entry<*>> = RegistryLoader.SYNCED_REGISTRIES.stream()
         val json = JsonObject()
-        registries.forEach { entry ->
-            json.add(
-                entry.key().value.path,
-                mapJson(entry, server.registryManager, server.combinedDynamicRegistries)
-            )
+        RegistryDataLoader.SYNCHRONIZED_REGISTRIES.forEach { entry ->
+            json.add(entry.key().identifier().path, mapJson(entry, server))
         }
         return json
     }
 
-    private fun <T> mapJson(
-        registryEntry: RegistryLoader.Entry<T>,
-        registryManager: DynamicRegistryManager.Immutable,
-        combinedRegistries: CombinedDynamicRegistries<ServerDynamicRegistryType?>
+    private fun <T : Any> mapJson(
+        registryData: RegistryDataLoader.RegistryData<T>,
+        server: MinecraftServer
     ): JsonObject {
-        val codec: Codec<T> = registryEntry.elementCodec()
-        val registry: Registry<T> = registryManager.getOrThrow(registryEntry.key())
+        val codec: Codec<T> = registryData.elementCodec()
+        val registryAccess = server.registries().compositeAccess()
+        val registry = registryAccess.lookupOrThrow(registryData.key())
+        val ops = registryAccess.createSerializationContext(JsonOps.INSTANCE)
         val json = JsonObject()
-        registry.streamEntries().forEach { entry ->
+        registry.asHolderIdMap().forEach { entry ->
             json.add(
-                entry.key.orElseThrow().value.path,
-                codec.encodeStart(
-                    combinedRegistries.combinedRegistryManager.getOps(JsonOps.INSTANCE),
-                    entry.value()
-                ).getOrThrow()
+                entry.unwrapKey().get().identifier().path,
+                codec.encodeStart(ops, entry.value()).orThrow
             )
         }
         return json
     }
-
 }

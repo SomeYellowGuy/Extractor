@@ -4,10 +4,9 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.mojang.serialization.JsonOps
 import de.snowii.extractor.Extractor
-import net.minecraft.entity.damage.DamageType
-import net.minecraft.registry.RegistryKeys
-import net.minecraft.registry.RegistryOps
+import net.minecraft.core.registries.Registries
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.damagesource.DamageType
 
 class DamageTypes : Extractor.Extractor {
     override fun fileName(): String {
@@ -16,20 +15,21 @@ class DamageTypes : Extractor.Extractor {
 
     override fun extract(server: MinecraftServer): JsonElement {
         val damageTypesJson = JsonObject()
-        val damageTypeRegistry = server.registryManager.getOrThrow(RegistryKeys.DAMAGE_TYPE)
-        for (type in damageTypeRegistry) {
+        val registry =
+            server.registryAccess().getOrThrow(Registries.DAMAGE_TYPE).value()
+        for (type in registry) {
             val json = JsonObject()
-            json.addProperty("id", damageTypeRegistry.getRawId(type))
+            json.addProperty("id", registry.getId(type))
             json.add(
                 "components",
-                DamageType.CODEC
+                DamageType.DIRECT_CODEC
                     .encodeStart(
-                        RegistryOps.of(JsonOps.INSTANCE, server.registryManager),
+                        JsonOps.INSTANCE,
                         type
                     )
                     .getOrThrow()
             )
-            damageTypesJson.add(damageTypeRegistry.getId(type)!!.path, json)
+            damageTypesJson.add(registry.getKey(type)!!.path, json)
         }
 
         return damageTypesJson

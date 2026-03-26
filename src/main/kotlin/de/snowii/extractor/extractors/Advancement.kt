@@ -21,7 +21,7 @@ class Advancement : Extractor.Extractor {
                 advancement.value
             ).getOrThrow() as JsonObject
             finalJson.add(
-                advancement.id!!.toString(), sub
+                advancement.id.toString(), sub
             )
         }
         return finalJson

@@ -5,33 +5,33 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import de.snowii.extractor.Extractor
-import net.minecraft.registry.BuiltinRegistries
-import net.minecraft.registry.RegistryKey
-import net.minecraft.registry.RegistryKeys
+import net.minecraft.core.registries.Registries
+import net.minecraft.resources.Identifier
+import net.minecraft.resources.ResourceKey
 import net.minecraft.server.MinecraftServer
-import net.minecraft.util.Identifier
-import net.minecraft.util.math.Spline
-import net.minecraft.util.math.noise.OctavePerlinNoiseSampler
-import net.minecraft.util.math.noise.SimplexNoiseSampler
-import net.minecraft.world.gen.densityfunction.DensityFunction
-import net.minecraft.world.gen.densityfunction.DensityFunction.Noise
-import net.minecraft.world.gen.densityfunction.DensityFunctionTypes
-import net.minecraft.world.gen.densityfunction.DensityFunctionTypes.RegistryEntryHolder
-import net.minecraft.world.gen.noise.NoiseRouter
+import net.minecraft.util.CubicSpline
+import net.minecraft.world.level.levelgen.DensityFunction
+import net.minecraft.world.level.levelgen.DensityFunctions
+import net.minecraft.world.level.levelgen.NoiseRouter
+import net.minecraft.world.level.levelgen.synth.NormalNoise
+import net.minecraft.world.level.levelgen.synth.PerlinNoise
+import net.minecraft.world.level.levelgen.synth.SimplexNoise
 
 class DensityFunctions : Extractor.Extractor {
     override fun fileName(): String = "density_function.json"
 
-    private fun serializeSpline(spline: Spline<*, *>): JsonObject {
+    private fun serializeSpline(spline: CubicSpline<*, *>): JsonObject {
         val obj = JsonObject()
 
         when (spline) {
-            is Spline.Implementation<*, *> -> {
+            is CubicSpline.Multipoint<*, *> -> {
                 obj.add("_type", JsonPrimitive("standard"))
 
                 val value = JsonObject()
-                val functionWrapper = spline.locationFunction() as DensityFunctionTypes.Spline.DensityFunctionWrapper
-                value.add("locationFunction", serializeFunction(functionWrapper.function.value()))
+                @Suppress("UNCHECKED_CAST")
+                val functionWrapper =
+                    spline.coordinate() as DensityFunctions.Spline.Coordinate
+                value.add("locationFunction", serializeFunction(functionWrapper.function().value()))
 
                 val locationArr = JsonArray()
                 for (location in spline.locations()) {
@@ -54,16 +54,15 @@ class DensityFunctions : Extractor.Extractor {
                 obj.add("value", value)
             }
 
-            is Spline.FixedFloatFunction<*, *> -> {
+            is CubicSpline.Constant<*, *> -> {
                 obj.add("_type", JsonPrimitive("fixed"))
 
                 val value = JsonObject()
                 value.add("value", JsonPrimitive(spline.value()))
-
                 obj.add("value", value)
             }
 
-            else -> throw Exception("Unknown spline: $obj (${obj.javaClass})")
+            else -> throw Exception("Unknown spline: $spline (${spline.javaClass})")
         }
 
         return obj
@@ -72,27 +71,10 @@ class DensityFunctions : Extractor.Extractor {
     private fun serializeValue(name: String, obj: Any, parent: String): JsonElement {
         return when (obj) {
             is DensityFunction -> serializeFunction(obj)
-            is Noise -> JsonPrimitive(obj.noiseData.key.get().value.path)
-            is Spline<*, *> -> serializeSpline(obj)
+            is CubicSpline<*, *> -> serializeSpline(obj)
             is Int -> JsonPrimitive(obj)
-            is Float -> {
-                /*
-                if (obj.isNaN()) {
-                    throw Exception("Bad float ($name) from $parent")
-                }
-                 */
-                JsonPrimitive(obj)
-            }
-
-            is Double -> {
-                /*
-                if (obj.isNaN()) {
-                    throw Exception("Bad double ($name) from $parent")
-                }
-                 */
-                JsonPrimitive(obj)
-            }
-
+            is Float -> JsonPrimitive(obj)
+            is Double -> JsonPrimitive(obj)
             is Boolean -> JsonPrimitive(obj)
             is String -> JsonPrimitive(obj)
             is Char -> JsonPrimitive(obj)
@@ -104,8 +86,9 @@ class DensityFunctions : Extractor.Extractor {
     private fun serializeFunction(function: DensityFunction): JsonObject {
         val obj = JsonObject()
 
-        if (function is RegistryEntryHolder) {
-            return serializeFunction(function.function.value())
+        // Unwrap registry holder transparently
+        if (function is DensityFunctions.HolderHolder) {
+            return serializeFunction(function.function().value())
         }
 
         obj.add("_class", JsonPrimitive(function.javaClass.simpleName))
@@ -113,26 +96,18 @@ class DensityFunctions : Extractor.Extractor {
         val value = JsonObject()
         for (field in function.javaClass.declaredFields) {
             if (field.name.first().isUpperCase()) {
-                // We only want to serialize the used values
                 continue
             }
 
-            // These are constant
             if (function.javaClass.simpleName == "BlendDensity") {
-                if (field.name == "maxValue") {
-                    continue
-                }
-                if (field.name == "minValue") {
-                    continue
-                }
+                if (field.name == "maxValue" || field.name == "minValue") continue
             }
 
-            if (function is DensityFunctionTypes.Spline) {
+            if (function is DensityFunctions.Spline) {
                 value.add("minValue", JsonPrimitive(function.minValue()))
                 value.add("maxValue", JsonPrimitive(function.maxValue()))
             }
 
-            // These aren't used
             if (field.name.startsWith("field_")) {
                 continue
             }
@@ -140,10 +115,10 @@ class DensityFunctions : Extractor.Extractor {
             field.trySetAccessible()
             val fieldValue = field.get(function)
             when (fieldValue) {
-                // SimplexNoiseSampler is initialized with a random value during runtime
-                is SimplexNoiseSampler -> continue
-                // OctavePerlinNoiseSampler is initialized with a random value during runtime
-                is OctavePerlinNoiseSampler -> continue
+                is SimplexNoise -> continue
+                is PerlinNoise -> continue
+                is NormalNoise -> continue
+                null -> continue
             }
 
             val serialized = serializeValue(field.name, fieldValue, function.javaClass.simpleName)
@@ -162,10 +137,8 @@ class DensityFunctions : Extractor.Extractor {
 
         for (field in router.javaClass.declaredFields) {
             if (field.name.first().isUpperCase()) {
-                // CODEC is not a value we want
                 continue
             }
-
             field.trySetAccessible()
             val function = field.get(router)
             val serialized = serializeFunction(function as DensityFunction)
@@ -178,20 +151,18 @@ class DensityFunctions : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val topLevelJson = JsonObject()
 
-        val lookup = BuiltinRegistries.createWrapperLookup()
-        val wrapper = lookup.getOrThrow(RegistryKeys.CHUNK_GENERATOR_SETTINGS)
+        val registryAccess = server.registries().compositeAccess()
+        val noiseSettingsLookup = registryAccess.lookupOrThrow(Registries.NOISE_SETTINGS)
 
-        wrapper.streamKeys().forEach { key ->
-            val entry = wrapper.getOrThrow(key)
+        noiseSettingsLookup.listElements().forEach { entry ->
             val settings = entry.value()
-
-            val obj = serializeRouter(settings.noiseRouter)
-            topLevelJson.add(key.value.path, obj)
+            val obj = serializeRouter(settings.noiseRouter())
+            topLevelJson.add(entry.key().identifier().path, obj)
         }
+
         return topLevelJson
     }
 
-    // Dump the building blocks of the density functions to validate proper results
     inner class Tests : Extractor.Extractor {
         override fun fileName(): String = "density_function_tests.json"
 
@@ -212,14 +183,14 @@ class DensityFunctions : Extractor.Extractor {
                 "overworld/sloped_cheese"
             )
 
-            val lookup = BuiltinRegistries.createWrapperLookup()
-            val functionLookup = lookup.getOrThrow(RegistryKeys.DENSITY_FUNCTION)
+            val registryAccess = server.registries().compositeAccess()
+            val functionLookup = registryAccess.lookupOrThrow(Registries.DENSITY_FUNCTION)
+
             for (functionName in functionNames) {
-                val functionKey =
-                    RegistryKey.of(
-                        RegistryKeys.DENSITY_FUNCTION,
-                        Identifier.ofVanilla(functionName)
-                    )
+                val functionKey = ResourceKey.create(
+                    Registries.DENSITY_FUNCTION,
+                    Identifier.withDefaultNamespace(functionName)
+                )
                 val function = functionLookup.getOrThrow(functionKey).value()
                 topLevelJson.add(functionName, serializeFunction(function))
             }

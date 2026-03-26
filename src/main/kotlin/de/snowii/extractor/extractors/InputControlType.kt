@@ -3,7 +3,7 @@ package de.snowii.extractor.extractors
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import de.snowii.extractor.Extractor
-import net.minecraft.registry.RegistryKeys
+import net.minecraft.core.registries.Registries
 import net.minecraft.server.MinecraftServer
 
 class InputControlType : Extractor.Extractor {
@@ -13,11 +13,12 @@ class InputControlType : Extractor.Extractor {
 
     override fun extract(server: MinecraftServer): JsonElement {
         val InputControlTypeJson = JsonObject()
-        val registry = server.registryManager.getOrThrow(RegistryKeys.INPUT_CONTROL_TYPE)
+        val registry =
+            server.registryAccess().getOrThrow(Registries.INPUT_CONTROL_TYPE).value()
 
-        for (inputControlType in registry.streamEntries().toList()) {
-            val id = registry.getId(inputControlType.value())
-            InputControlTypeJson.addProperty(id.toString(), registry.getRawId(inputControlType.value()))
+        for (inputControlType in registry.stream()) {
+            val id = registry.getId(inputControlType)
+            InputControlTypeJson.addProperty(id.toString(), registry.getId(inputControlType))
         }
 
         return InputControlTypeJson
