@@ -4,6 +4,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import de.snowii.extractor.Extractor
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.scores.DisplaySlot
 
 class ScoreboardDisplaySlot : Extractor.Extractor {
     override fun fileName(): String {
@@ -12,7 +13,7 @@ class ScoreboardDisplaySlot : Extractor.Extractor {
 
     override fun extract(server: MinecraftServer): JsonElement {
         val finalJson = JsonArray()
-        for (slot in ScoreboardDisplaySlot.entries) {
+        for (slot in DisplaySlot.entries) {
             finalJson.add(
                 slot.name,
             )

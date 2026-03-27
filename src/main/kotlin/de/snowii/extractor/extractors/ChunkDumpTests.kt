@@ -1,35 +1,23 @@
+/* :cry:
 package de.snowii.extractor.extractors
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import de.snowii.extractor.Extractor
 import net.minecraft.SharedConstants
-import net.minecraft.block.Block
-import net.minecraft.block.BlockState
-import net.minecraft.block.Blocks
-import net.minecraft.registry.BuiltinRegistries
-import net.minecraft.registry.RegistryKeys
+import net.minecraft.core.registries.Registries
 import net.minecraft.server.MinecraftServer
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.ChunkPos
-import net.minecraft.world.HeightLimitView
-import net.minecraft.world.Heightmap
-import net.minecraft.world.biome.source.BiomeAccess
-import net.minecraft.world.biome.source.BiomeSource
-import net.minecraft.world.biome.source.util.MultiNoiseUtil.MultiNoiseSampler
-import net.minecraft.world.biome.source.util.MultiNoiseUtil.NoiseHypercube
-import net.minecraft.world.chunk.Chunk
-import net.minecraft.world.chunk.ChunkStatus
-import net.minecraft.world.chunk.ProtoChunk
-import net.minecraft.world.chunk.UpgradeData
-import net.minecraft.world.gen.HeightContext
-import net.minecraft.world.gen.WorldPresets
-import net.minecraft.world.gen.chunk.*
-import net.minecraft.world.gen.densityfunction.DensityFunction
-import net.minecraft.world.gen.densityfunction.DensityFunction.*
-import net.minecraft.world.gen.densityfunction.DensityFunctionTypes
-import net.minecraft.world.gen.densityfunction.DensityFunctionTypes.RegistryEntryHolder
-import net.minecraft.world.gen.noise.NoiseConfig
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.chunk.ProtoChunk
+import net.minecraft.world.level.chunk.UpgradeData
+import net.minecraft.world.level.levelgen.*
+import net.minecraft.world.level.levelgen.blending.Blender
+import net.minecraft.world.level.ChunkPos
+import net.minecraft.world.level.biome.BiomeManager
+import net.minecraft.world.level.biome.BiomeSource
+import net.minecraft.world.level.levelgen.structure.StructureSet
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import kotlin.reflect.KFunction
@@ -39,14 +27,14 @@ import kotlin.system.exitProcess
 class ChunkDumpTests {
 
     companion object {
-        private fun createFluidLevelSampler(settings: ChunkGeneratorSettings): AquiferSampler.FluidLevelSampler {
-            val fluidLevel = AquiferSampler.FluidLevel(-54, Blocks.LAVA.defaultState)
+        private fun createFluidLevelSampler(settings: NoiseGeneratorSettings): Aquifer.FluidPicker {
+            val fluidLevel = Aquifer.FluidStatus(-54, Blocks.LAVA.defaultBlockState())
             val i = settings.seaLevel()
-            val fluidLevel2 = AquiferSampler.FluidLevel(i, settings.defaultFluid())
-            return AquiferSampler.FluidLevelSampler { _, y, _ -> if (y < Math.min(-54, i)) fluidLevel else fluidLevel2 }
+            val fluidLevel2 = Aquifer.FluidStatus(i, settings.defaultFluid())
+            return Aquifer.FluidPicker { _, y, _ -> if (y < Math.min(-54, i)) fluidLevel else fluidLevel2 }
         }
 
-        private fun getIndex(config: GenerationShapeConfig, x: Int, y: Int, z: Int): Int {
+        private fun getIndex(config: NoiseSettings, x: Int, y: Int, z: Int): Int {
             if (x < 0 || y < 0 || z < 0) {
                 println("Bad local pos")
                 exitProcess(1)
@@ -55,43 +43,44 @@ class ChunkDumpTests {
         }
 
         private fun populateNoise(
-            settings: ChunkGeneratorSettings,
-            chunkNoiseSampler: ChunkNoiseSampler,
-            shapeConfig: GenerationShapeConfig,
-            chunk: Chunk,
-        ): Chunk {
+            settings: NoiseGeneratorSettings,
+            chunkNoiseSampler: NoiseChunk,
+            shapeConfig: NoiseSettings,
+            chunk: ProtoChunk,
+        ): ProtoChunk {
             var sampleBlockState: KFunction<BlockState?>? = null
             for (method: KFunction<*> in chunkNoiseSampler::class.declaredFunctions) {
-                if (method.name == "sampleBlockState") {
+                // In 26.1 (unobfuscated), the method is "getInterpolatedState"
+                if (method.name == "getInterpolatedState") {
                     sampleBlockState = method as KFunction<BlockState?>
                 }
             }
 
-            val heightmap = chunk.getHeightmap(Heightmap.Type.OCEAN_FLOOR_WG)
-            val heightmap2 = chunk.getHeightmap(Heightmap.Type.WORLD_SURFACE_WG)
+            val heightmap = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG)
+            val heightmap2 = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG)
             val chunkPos = chunk.pos
-            val i = chunkPos.startX
-            val j = chunkPos.startZ
-            val aquiferSampler = chunkNoiseSampler.aquiferSampler
-            chunkNoiseSampler.sampleStartDensity()
-            val mutable = BlockPos.Mutable()
-            val k = shapeConfig.horizontalCellBlockCount()
-            val l = shapeConfig.verticalCellBlockCount()
+            val i = chunkPos.minBlockX
+            val j = chunkPos.minBlockZ
+            val aquiferSampler = chunkNoiseSampler.aquifer()
+            chunkNoiseSampler.initializeForFirstCellX()
+            val mutable = net.minecraft.core.BlockPos.MutableBlockPos()
+            val k = shapeConfig.getCellWidth()
+            val l = shapeConfig.getCellHeight()
             val m = 16 / k
             val n = 16 / k
 
-            val cellHeight = shapeConfig.height() / l
-            val minimumCellY = shapeConfig.minimumY() / l
+            val cellHeight = shapeConfig.getCellCountY()
+            val minimumCellY = shapeConfig.getMinCellY()
 
             for (o in 0..<m) {
-                chunkNoiseSampler.sampleEndDensity(o)
+                chunkNoiseSampler.advanceCellX(o)
 
                 for (p in 0..<n) {
-                    var q = chunk.countVerticalSections() - 1
+                    var q = chunk.sectionsCount - 1
                     var chunkSection = chunk.getSection(q)
 
                     for (r in cellHeight - 1 downTo 0) {
-                        chunkNoiseSampler.onSampledCellCorners(r, p)
+                        chunkNoiseSampler.selectCellYZ(r, p)
 
                         for (s in l - 1 downTo 0) {
                             val t = (minimumCellY + r) * l + s
@@ -103,19 +92,19 @@ class ChunkDumpTests {
                             }
 
                             val d = s.toDouble() / l
-                            chunkNoiseSampler.interpolateY(t, d)
+                            chunkNoiseSampler.updateForY(t, d)
 
                             for (w in 0..<k) {
                                 val x = i + o * k + w
                                 val y = x and 15
                                 val e = w.toDouble() / k
-                                chunkNoiseSampler.interpolateX(x, e)
+                                chunkNoiseSampler.updateForX(x, e)
 
                                 for (z in 0..<k) {
                                     val aa = j + p * k + z
                                     val ab = aa and 15
                                     val f = z.toDouble() / k
-                                    chunkNoiseSampler.interpolateZ(aa, f)
+                                    chunkNoiseSampler.updateForZ(aa, f)
                                     var blockState = sampleBlockState!!.call(chunkNoiseSampler)
                                     if (blockState == null) {
                                         blockState = settings.defaultBlock()
@@ -126,11 +115,11 @@ class ChunkDumpTests {
                                         )
                                     ) {
                                         chunkSection.setBlockState(y, u, ab, blockState, false)
-                                        heightmap.trackUpdate(y, t, ab, blockState)
-                                        heightmap2.trackUpdate(y, t, ab, blockState)
-                                        if (aquiferSampler.needsFluidTick() && !blockState.fluidState.isEmpty) {
-                                            mutable[x, t] = aa
-                                            chunk.markBlockForPostProcessing(mutable)
+                                        heightmap.update(y, t, ab, blockState)
+                                        heightmap2.update(y, t, ab, blockState)
+                                        if (aquiferSampler.shouldScheduleFluidUpdate() && !blockState.fluidState.isEmpty) {
+                                            mutable.set(x, t, aa)
+                                            chunk.markPosForPostprocessing(mutable)
                                         }
                                     }
                                 }
@@ -139,7 +128,7 @@ class ChunkDumpTests {
                     }
                 }
 
-                chunkNoiseSampler.swapBuffers()
+                chunkNoiseSampler.swapSlices()
             }
 
             chunkNoiseSampler.stopInterpolation()
@@ -147,59 +136,60 @@ class ChunkDumpTests {
         }
 
 
-        // This is basically just what NoiseChunkGenerator is doing
+        // This is basically just what NoiseBasedChunkGenerator is doing
         private fun dumpPopulateNoise(
             startX: Int,
             startZ: Int,
-            sampler: ChunkNoiseSampler,
-            config: GenerationShapeConfig,
-            settings: ChunkGeneratorSettings
+            sampler: NoiseChunk,
+            config: NoiseSettings,
+            settings: NoiseGeneratorSettings
         ): IntArray? {
             val result = IntArray(16 * 16 * config.height())
 
             for (method: KFunction<*> in sampler::class.declaredFunctions) {
-                if (method.name.equals("sampleBlockState")) {
-                    sampler.sampleStartDensity()
-                    val k = config.horizontalCellBlockCount()
-                    val l = config.verticalCellBlockCount()
+                // In 26.1 (unobfuscated), the private method is "getInterpolatedState"
+                if (method.name.equals("getInterpolatedState")) {
+                    sampler.initializeForFirstCellX()
+                    val k = config.getCellWidth()
+                    val l = config.getCellHeight()
 
                     val m = 16 / k
                     val n = 16 / k
 
-                    val cellHeight = config.height() / l
-                    val minimumCellY = config.minimumY() / l
+                    val cellHeight = config.getCellCountY()
+                    val minimumCellY = config.getMinCellY()
 
                     for (o in 0..<m) {
-                        sampler.sampleEndDensity(o)
+                        sampler.advanceCellX(o)
                         for (p in 0..<n) {
                             for (r in (0..<cellHeight).reversed()) {
-                                sampler.onSampledCellCorners(r, p)
+                                sampler.selectCellYZ(r, p)
                                 for (s in (0..<l).reversed()) {
                                     val t = (minimumCellY + r) * l + s
                                     val d = s.toDouble() / l.toDouble()
-                                    sampler.interpolateY(t, d)
+                                    sampler.updateForY(t, d)
                                     for (w in 0..<k) {
                                         val x = startX + o * k + w
                                         val y = x and 15
                                         val e = w.toDouble() / k.toDouble()
-                                        sampler.interpolateX(x, e)
+                                        sampler.updateForX(x, e)
                                         for (z in 0..<k) {
                                             val aa = startZ + p * k + z
                                             val ab = aa and 15
                                             val f = z.toDouble() / k.toDouble()
-                                            sampler.interpolateZ(aa, f)
+                                            sampler.updateForZ(aa, f)
                                             var blockState = method.call(sampler) as BlockState?
                                             if (blockState == null) {
                                                 blockState = settings.defaultBlock()
                                             }
-                                            val index = this.getIndex(config, y, t - config.minimumY(), ab)
-                                            result[index] = Block.getRawIdFromState(blockState)
+                                            val index = this.getIndex(config, y, t - config.minY(), ab)
+                                            result[index] = Block.getId(blockState)
                                         }
                                     }
                                 }
                             }
                         }
-                        sampler.swapBuffers()
+                        sampler.swapSlices()
                     }
                     sampler.stopInterpolation()
                     return result
@@ -212,7 +202,7 @@ class ChunkDumpTests {
         class WrapperRemoverVisitor(private val wrappersToKeep: Iterable<String>) : DensityFunctionVisitor {
             override fun apply(densityFunction: DensityFunction?): DensityFunction {
                 when (densityFunction) {
-                    is DensityFunctionTypes.Wrapper -> {
+                    is Marker -> {
                         val name = densityFunction.type().toString()
                         if (wrappersToKeep.contains(name)) {
                             return densityFunction
@@ -220,8 +210,8 @@ class ChunkDumpTests {
                         return this.apply(densityFunction.wrapped())
                     }
 
-                    is RegistryEntryHolder -> {
-                        return this.apply(densityFunction.function.value())
+                    is DensityFunctions.HolderHolder -> {
+                        return this.apply(densityFunction.function().value())
                     }
 
                     else -> return densityFunction!!
@@ -232,7 +222,7 @@ class ChunkDumpTests {
         class WrapperValidateVisitor(private val wrappersToKeep: Iterable<String>) : DensityFunctionVisitor {
             override fun apply(densityFunction: DensityFunction?): DensityFunction {
                 when (densityFunction) {
-                    is DensityFunctionTypes.Wrapper -> {
+                    is Marker -> {
                         val name = densityFunction.type().toString()
                         if (wrappersToKeep.contains(name)) {
                             return densityFunction
@@ -240,8 +230,8 @@ class ChunkDumpTests {
                         throw Exception(name + "is still in the function!")
                     }
 
-                    is RegistryEntryHolder -> {
-                        return this.apply(densityFunction.function.value())
+                    is DensityFunctions.HolderHolder -> {
+                        return this.apply(densityFunction.function().value())
                     }
 
                     else -> return densityFunction!!
@@ -249,17 +239,17 @@ class ChunkDumpTests {
             }
         }
 
-        // Available:
-        //Interpolated
-        //CacheOnce
-        //FlatCache
-        //Cache2D
+        // Available wrapper types in Mojang mappings:
+        // Interpolated  -> Marker.Type.Interpolated
+        // CacheOnce     -> Marker.Type.CacheOnce
+        // FlatCache     -> Marker.Type.FlatCache
+        // Cache2D       -> Marker.Type.Cache2D
         //
-        //CellCache is only added inside the ChunkSampler itself so it cannot be removed and will always be in the function
-        private fun removeWrappers(config: NoiseConfig, wrappersToKeep: Iterable<String>) {
-            val noiseRouter = config.noiseRouter.apply(WrapperRemoverVisitor(wrappersToKeep))
+        // CellCache is only added inside the NoiseChunk itself so it cannot be removed
+        private fun removeWrappers(config: RandomState, wrappersToKeep: Iterable<String>) {
+            val noiseRouter = config.router.apply(WrapperRemoverVisitor(wrappersToKeep))
             for (field in config.javaClass.declaredFields) {
-                if (field.name.equals("noiseRouter")) {
+                if (field.name.equals("router")) {
                     field.trySetAccessible()
                     field.set(config, noiseRouter)
                     return
@@ -268,10 +258,10 @@ class ChunkDumpTests {
             throw Exception("Failed to replace router")
         }
 
-        fun createMultiNoiseSampler(config: NoiseConfig, sampler: ChunkNoiseSampler): MultiNoiseSampler {
+        fun createMultiNoiseSampler(config: RandomState, sampler: NoiseChunk): net.minecraft.world.level.biome.Climate.Sampler {
             var createMultiNoiseSampler: Method? = null
             for (m: Method in sampler.javaClass.declaredMethods) {
-                if (m.name == "createMultiNoiseSampler") {
+                if (m.name == "cachedClimateSampler") {
                     m.trySetAccessible()
                     createMultiNoiseSampler = m
                     break
@@ -280,9 +270,9 @@ class ChunkDumpTests {
 
             val noiseSampler = createMultiNoiseSampler!!.invoke(
                 sampler,
-                config.noiseRouter,
-                listOf<NoiseHypercube>()
-            ) as MultiNoiseSampler
+                config.router,
+                listOf<net.minecraft.world.level.biome.Climate.ParameterPoint>()
+            ) as net.minecraft.world.level.biome.Climate.Sampler
 
             return noiseSampler
         }
@@ -297,76 +287,94 @@ class ChunkDumpTests {
         override fun fileName(): String = this.filename
 
         override fun extract(server: MinecraftServer): JsonElement {
-            val biomeRegistry = server.registryManager.getOrThrow(RegistryKeys.BIOME)
+            val biomeRegistry = server.registryAccess().lookupOrThrow(Registries.BIOME)
 
             val chunkPos = ChunkPos(this.chunkX, this.chunkZ)
 
-            val lookup = BuiltinRegistries.createWrapperLookup()
-            val wrapper = lookup.getOrThrow(RegistryKeys.CHUNK_GENERATOR_SETTINGS)
-            val noiseParams = lookup.getOrThrow(RegistryKeys.NOISE_PARAMETERS)
+            val lookup = net.minecraft.core.RegistryAccess.fromRegistryOfRegistries(
+                net.minecraft.core.registries.BuiltInRegistries.REGISTRY
+            )
+            // In 26.1, BuiltinRegistries.createWrapperLookup() becomes
+            // accessing through RegistryDataLoader / VanillaRegistries
+            val wrapperLookup = net.minecraft.resources.RegistryOps.create(
+                com.mojang.serialization.JsonOps.INSTANCE,
+                server.registryAccess()
+            ).let { server.registryAccess() }
 
-            val ref = wrapper.getOrThrow(ChunkGeneratorSettings.OVERWORLD)
+            val ref = server.registryAccess().lookupOrThrow(Registries.NOISE_SETTINGS)
+                .getOrThrow(NoiseGeneratorSettings.OVERWORLD)
             val settings = ref.value()
-            val config = NoiseConfig.create(settings, noiseParams, seed)
 
-            val options = WorldPresets.getDefaultOverworldOptions(lookup)
-            var biomeSource: BiomeSource? = null
-            for (f: Field in options.chunkGenerator.javaClass.fields) {
-                if (f.name == "biomeSource") {
-                    biomeSource = f.get(options.chunkGenerator) as BiomeSource
-                }
-            }
+            val noiseParams = server.registryAccess().lookupOrThrow(Registries.NOISE)
+            val config = RandomState.create(settings, noiseParams, seed)
+
+            val chunkGenerator = server.overworld().chunkSource.generator
+            val biomeSource = chunkGenerator.biomeSource
 
             // Overworld shape config
-            val shape = GenerationShapeConfig(-64, 384, 1, 2)
+            val shape = NoiseSettings.create(-64, 384, 1, 2)
             val testSampler =
-                ChunkNoiseSampler(
-                    16 / shape.horizontalCellBlockCount(), config, chunkPos.startX, chunkPos.startZ,
-                    shape, object : DensityFunctionTypes.Beardifying {
+                NoiseChunk.forChunk(
+                    16 / shape.getCellWidth(),
+                    config,
+                    chunkPos.minBlockX,
+                    chunkPos.minBlockZ,
+                    shape,
+                    object : DensityFunctions.BeardifierOrMarker {
                         override fun maxValue(): Double = 0.0
                         override fun minValue(): Double = 0.0
-                        override fun sample(pos: NoisePos): Double = 0.0
-                        override fun fill(densities: DoubleArray, applier: EachApplier) {
+                        override fun compute(pos: FunctionContext): Double = 0.0
+                        override fun fillArray(densities: DoubleArray, contextProvider: ContextProvider) {
                             densities.fill(0.0)
                         }
-                    }, settings, createFluidLevelSampler(settings), Blender.getNoBlending()
+                    },
+                    settings,
+                    createFluidLevelSampler(settings),
+                    Blender.empty()
                 )
 
+            val levelHeightAccessor = net.minecraft.world.level.LevelHeightAccessor.create(
+                chunkGenerator.getMinY(),
+                chunkGenerator.getGenDepth()
+            )
+
             val chunk = ProtoChunk(
-                chunkPos, UpgradeData.NO_UPGRADE_DATA,
-                HeightLimitView.create(options.chunkGenerator.minimumY, options.chunkGenerator.worldHeight),
-                server.overworld.palettesFactory, null
+                chunkPos,
+                UpgradeData.EMPTY,
+                levelHeightAccessor,
+                server.registryAccess().lookupOrThrow(Registries.BIOME),
+                null
             )
 
             val biomeNoiseSampler = createMultiNoiseSampler(config, testSampler)
-            chunk.populateBiomes(biomeSource!!, biomeNoiseSampler)
-            chunk.status = ChunkStatus.BIOMES
+            chunk.fillBiomesFromNoise(biomeSource, biomeNoiseSampler)
+            chunk.setStatus(ChunkStatus.BIOMES)
 
             populateNoise(settings, testSampler, shape, chunk)
-            chunk.status = ChunkStatus.NOISE
+            chunk.setStatus(ChunkStatus.NOISE)
 
-            val biomeMixer = BiomeAccess(chunk, BiomeAccess.hashSeed(seed))
-            val heightContext = HeightContext(options.chunkGenerator, chunk)
-            config.surfaceBuilder.buildSurface(
+            val biomeMixer = BiomeManager(chunk, BiomeManager.obfuscateSeed(seed))
+            val heightContext = WorldGenerationContext(chunkGenerator, chunk)
+            config.surfaceSystem.buildSurface(
                 config,
                 biomeMixer,
-                biomeRegistry,
-                settings.usesLegacyRandom,
+                server.registryAccess(),
+                settings.useLegacyRandomSource(),
                 heightContext,
                 chunk,
                 testSampler,
-                settings.surfaceRule
+                settings.surfaceRule()
             )
-            chunk.status = ChunkStatus.SURFACE
+            chunk.setStatus(ChunkStatus.SURFACE)
 
             val result = IntArray(16 * 16 * chunk.height)
             for (x in 0..15) {
-                for (y in chunk.bottomY..chunk.topYInclusive) {
+                for (y in chunk.minBuildHeight..chunk.maxBuildHeight) {
                     for (z in 0..15) {
-                        val pos = BlockPos(x, y, z)
+                        val pos = net.minecraft.core.BlockPos(x, y, z)
                         val blockState = chunk.getBlockState(pos)
-                        val index = getIndex(shape, x, y - chunk.bottomY, z)
-                        result[index] = Block.getRawIdFromState(blockState)
+                        val index = getIndex(shape, x, y - chunk.minBuildHeight, z)
+                        result[index] = Block.getId(blockState)
                     }
                 }
             }
@@ -393,33 +401,40 @@ class ChunkDumpTests {
             val topLevelJson = JsonArray()
             val chunkPos = ChunkPos(this.chunkX, this.chunkZ)
 
-            val lookup = BuiltinRegistries.createWrapperLookup()
-            val wrapper = lookup.getOrThrow(RegistryKeys.CHUNK_GENERATOR_SETTINGS)
-            val noiseParams = lookup.getOrThrow(RegistryKeys.NOISE_PARAMETERS)
-
-            val ref = wrapper.getOrThrow(ChunkGeneratorSettings.OVERWORLD)
+            val ref = server.registryAccess().lookupOrThrow(Registries.NOISE_SETTINGS)
+                .getOrThrow(NoiseGeneratorSettings.OVERWORLD)
             val settings = ref.value()
-            val config = NoiseConfig.create(settings, noiseParams, seed)
+
+            val noiseParams = server.registryAccess().lookupOrThrow(Registries.NOISE)
+            val config = RandomState.create(settings, noiseParams, seed)
+
             // Always have cellcache wrappers
             removeWrappers(config, this.allowedWrappers)
-            config.noiseRouter.apply(WrapperValidateVisitor(this.allowedWrappers))
+            config.router.apply(WrapperValidateVisitor(this.allowedWrappers))
 
             // Overworld shape config
-            val shape = GenerationShapeConfig(-64, 384, 1, 2)
+            val shape = NoiseSettings.create(-64, 384, 1, 2)
             val testSampler =
-                ChunkNoiseSampler(
-                    16 / shape.horizontalCellBlockCount(), config, chunkPos.startX, chunkPos.startZ,
-                    shape, object : DensityFunctionTypes.Beardifying {
+                NoiseChunk.forChunk(
+                    16 / shape.getCellWidth(),
+                    config,
+                    chunkPos.minBlockX,
+                    chunkPos.minBlockZ,
+                    shape,
+                    object : DensityFunctions.BeardifierOrMarker {
                         override fun maxValue(): Double = 0.0
                         override fun minValue(): Double = 0.0
-                        override fun sample(pos: NoisePos): Double = 0.0
-                        override fun fill(densities: DoubleArray, applier: EachApplier) {
+                        override fun compute(pos: FunctionContext): Double = 0.0
+                        override fun fillArray(densities: DoubleArray, contextProvider: ContextProvider) {
                             densities.fill(0.0)
                         }
-                    }, settings, createFluidLevelSampler(settings), Blender.getNoBlending()
+                    },
+                    settings,
+                    createFluidLevelSampler(settings),
+                    Blender.empty()
                 )
 
-            val data = dumpPopulateNoise(chunkPos.startX, chunkPos.startZ, testSampler, shape, settings)
+            val data = dumpPopulateNoise(chunkPos.minBlockX, chunkPos.minBlockZ, testSampler, shape, settings)
             data?.forEach { state ->
                 topLevelJson.add(state)
             }
@@ -427,4 +442,4 @@ class ChunkDumpTests {
             return topLevelJson
         }
     }
-}
+}*/

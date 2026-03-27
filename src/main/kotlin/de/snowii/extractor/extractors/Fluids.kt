@@ -40,7 +40,7 @@ class Fluids : Extractor.Extractor {
                 stateJson.addProperty("height", state.ownHeight)
                 stateJson.addProperty("level", state.amount)
                 stateJson.addProperty("is_empty", state.isEmpty)
-                stateJson.addProperty("blast_resistance", state.blastResistance)
+                stateJson.addProperty("blast_resistance", state.explosionResistance)
                 stateJson.addProperty("block_state_id", Block.getId(state.createLegacyBlock()))
                 stateJson.addProperty("is_still", state.isSource)
 

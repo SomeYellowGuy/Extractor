@@ -16,7 +16,7 @@ class Enchantments : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val finalJson = JsonObject()
         val registry =
-            server.registryAccess().getOrThrow(Registries.ENCHANTMENT).value()
+            server.registryAccess().lookupOrThrow(Registries.ENCHANTMENT)
         for (enchantment in registry) {
             val sub = Enchantment.DIRECT_CODEC.encodeStart(
                 JsonOps.INSTANCE, enchantment

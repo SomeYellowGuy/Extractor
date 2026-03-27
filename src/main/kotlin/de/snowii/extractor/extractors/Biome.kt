@@ -15,18 +15,26 @@ class Biome : Extractor.Extractor {
 
     override fun extract(server: MinecraftServer): JsonElement {
         val biomeData = JsonObject()
-        val biomeRegistry =
-            server.registryAccess().getOrThrow(Registries.BIOME).value()
-        for (biome in biomeRegistry) {
+
+        val biomeRegistry = server.registryAccess().lookupOrThrow(Registries.BIOME)
+
+        val ops = server.registryAccess().createSerializationContext(JsonOps.INSTANCE)
+
+        biomeRegistry.listElements().forEach { holder ->
+            val biome = holder.value()
+            val key = holder.key()
+
             val json = Biome.DIRECT_CODEC.encodeStart(
-                JsonOps.INSTANCE,
+                ops,
                 biome
             ).getOrThrow().asJsonObject
-            json.addProperty("id", biomeRegistry.getId(biome))
-            biomeData.add(
-                biomeRegistry.getKey(biome)!!.path, json
-            )
 
+            json.addProperty("id", biomeRegistry.getId(biome))
+
+            biomeData.add(
+                key.identifier().path,
+                json
+            )
         }
 
         return biomeData

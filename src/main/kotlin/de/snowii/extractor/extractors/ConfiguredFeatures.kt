@@ -16,7 +16,7 @@ class ConfiguredFeatures : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val finalJson = JsonObject()
         val registry =
-            server.registryAccess().getOrThrow(Registries.CONFIGURED_FEATURE).value()
+            server.registryAccess().lookupOrThrow(Registries.CONFIGURED_FEATURE)
         for (setting in registry) {
             finalJson.add(
                 registry.getKey(setting)!!.path,

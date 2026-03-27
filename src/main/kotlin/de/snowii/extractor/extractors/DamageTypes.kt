@@ -16,7 +16,7 @@ class DamageTypes : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val damageTypesJson = JsonObject()
         val registry =
-            server.registryAccess().getOrThrow(Registries.DAMAGE_TYPE).value()
+            server.registryAccess().lookupOrThrow(Registries.DAMAGE_TYPE)
         for (type in registry) {
             val json = JsonObject()
             json.addProperty("id", registry.getId(type))

@@ -4,6 +4,7 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import de.snowii.extractor.Extractor
 import net.minecraft.server.MinecraftServer
+import net.minecraft.world.entity.EntityEvent
 
 class EntityStatuses : Extractor.Extractor {
     override fun fileName(): String {
@@ -12,7 +13,7 @@ class EntityStatuses : Extractor.Extractor {
 
     override fun extract(server: MinecraftServer): JsonElement {
         val jsonObject = JsonObject()
-        val fields = EntityStatuses::class.java.declaredFields
+        val fields = EntityEvent::class.java.declaredFields
 
         for (field in fields) {
             if (field.type == Byte::class.javaPrimitiveType || field.type == Byte::class.java) {

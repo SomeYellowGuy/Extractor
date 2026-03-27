@@ -19,7 +19,7 @@ class Items : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val itemsJson = JsonObject()
         val registry =
-            server.registryAccess().getOrThrow(Registries.ITEM).value()
+            server.registryAccess().lookupOrThrow(Registries.ITEM)
 
         for (realItem in registry.stream()) {
             val itemJson = JsonObject()

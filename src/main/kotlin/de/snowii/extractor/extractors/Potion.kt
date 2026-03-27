@@ -17,7 +17,7 @@ class Potion : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val json = JsonObject()
         val registry =
-            server.registryAccess().getOrThrow(Registries.POTION).value()
+            server.registryAccess().lookupOrThrow(Registries.POTION)
         for (realPotion in registry) {
             val itemJson = JsonObject()
             val array = JsonArray()

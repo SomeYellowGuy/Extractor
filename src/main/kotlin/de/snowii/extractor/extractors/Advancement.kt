@@ -14,14 +14,19 @@ class Advancement : Extractor.Extractor {
 
     override fun extract(server: MinecraftServer): JsonElement {
         val finalJson = JsonObject()
+
+        val ops = server.registryAccess().createSerializationContext(JsonOps.INSTANCE)
+
         val advancementEntries = server.advancements.allAdvancements
         for (advancement in advancementEntries) {
             val sub = Advancement.CODEC.encodeStart(
-                JsonOps.INSTANCE,
+                ops,
                 advancement.value
             ).getOrThrow() as JsonObject
+
             finalJson.add(
-                advancement.id.toString(), sub
+                advancement.id.toString(),
+                sub
             )
         }
         return finalJson

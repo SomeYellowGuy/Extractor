@@ -16,7 +16,7 @@ class Dialog : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val finalJson = JsonObject()
         val registry =
-            server.registryAccess().getOrThrow(Registries.DIALOG).value()
+            server.registryAccess().lookupOrThrow(Registries.DIALOG)
         for (dialog in registry) {
             val sub = Dialog.DIRECT_CODEC.encodeStart(
                 JsonOps.INSTANCE, dialog

@@ -25,7 +25,7 @@ class MetaDataType : Extractor.Extractor {
                     field.isAccessible = true
                     val handler = field.get(null) as EntityDataAccessor<*>
 
-                    val id = SynchedEntityData.get(handler)
+                    val id = handler.id()
 
                     if (id != -1) {
                         jsonObject.addProperty(field.name.lowercase(), id)

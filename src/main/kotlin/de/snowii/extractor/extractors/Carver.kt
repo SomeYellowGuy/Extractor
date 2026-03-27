@@ -15,15 +15,23 @@ class Carver : Extractor.Extractor {
 
     override fun extract(server: MinecraftServer): JsonElement {
         val finalJson = JsonObject()
-        val registry =
-            server.registryAccess().getOrThrow(Registries.CONFIGURED_CARVER).value()
-        for (setting in registry) {
+
+        val registry = server.registryAccess().lookupOrThrow(Registries.CONFIGURED_CARVER)
+
+        val ops = server.registryAccess().createSerializationContext(JsonOps.INSTANCE)
+
+        registry.listElements().forEach { holder ->
+            val carver = holder.value()
+            val key = holder.key()
+
+            val json = ConfiguredWorldCarver.DIRECT_CODEC.encodeStart(
+                ops,
+                carver
+            ).getOrThrow()
+
             finalJson.add(
-                registry.getKey(setting)!!.path,
-                ConfiguredWorldCarver.DIRECT_CODEC.encodeStart(
-                    JsonOps.INSTANCE,
-                    setting
-                ).getOrThrow()
+                key.identifier().path,
+                json
             )
         }
 

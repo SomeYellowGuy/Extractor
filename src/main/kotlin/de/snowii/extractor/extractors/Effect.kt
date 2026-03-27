@@ -19,11 +19,8 @@ class Effect : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val json = JsonObject()
         val registryAccess = server.registries().compositeAccess()
-        val ops = registryAccess.createSerializationContext(
-            com.mojang.serialization.JsonOps.INSTANCE
-        )
 
-        val attributeRegistry = registryAccess.lookupOrThrow(Registries.ATTRIBUTE)
+        val attributeRegistry = registryAccess.lookupOrThrow(Registries.MOB_EFFECT)
 
         for (effect in BuiltInRegistries.MOB_EFFECT) {
             val itemJson = JsonObject()
@@ -32,10 +29,10 @@ class Effect : Extractor.Extractor {
             itemJson.addProperty("category", effect.category.name)
             itemJson.addProperty("color", effect.color)
 
-            if (effect.fadeInDuration != 0 || effect.fadeOutDuration != 0 || effect.fadeOutDurationThreshold != 0) {
-                itemJson.addProperty("fade_in_ticks", effect.fadeInDuration)
-                itemJson.addProperty("fade_out_ticks", effect.fadeOutDuration)
-                itemJson.addProperty("fade_out_threshold_ticks", effect.fadeOutDurationThreshold)
+            if (effect.blendInDurationTicks != 0 || effect.blendOutDurationTicks != 0 || effect.blendOutAdvanceTicks != 0) {
+                itemJson.addProperty("fade_in_ticks", effect.blendInDurationTicks)
+                itemJson.addProperty("fade_out_ticks", effect.blendOutDurationTicks)
+                itemJson.addProperty("fade_out_threshold_ticks", effect.blendOutAdvanceTicks)
             }
 
             itemJson.addProperty("translation_key", effect.descriptionId)
@@ -53,11 +50,11 @@ class Effect : Extractor.Extractor {
             }
 
             val attributeModifiersJson = JsonArray()
-            effect.forEachAttributeModifier(0) { attributeHolder, modifier ->
+            effect.createModifiers(0) { attributeHolder, modifier ->
                 val modJson = JsonObject()
                 modJson.addProperty(
                     "attribute",
-                    attributeHolder.unwrapKey().orElseThrow().location().path
+                    attributeHolder.unwrapKey().get().identifier().path
                 )
                 modJson.addProperty("operation", modifier.operation().toString())
                 modJson.addProperty("id", modifier.id().toString())
@@ -66,7 +63,7 @@ class Effect : Extractor.Extractor {
             }
             itemJson.add("attribute_modifiers", attributeModifiersJson)
 
-            json.add(effect.key().location().path, itemJson)
+            json.add(attributeRegistry.getKey(effect)!!.path, itemJson)
         }
 
         return json

@@ -14,7 +14,7 @@ class DialogBodyType : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val dialogBodyJson = JsonObject()
         val registry =
-            server.registryAccess().getOrThrow(Registries.DIALOG_BODY_TYPE).value()
+            server.registryAccess().lookupOrThrow(Registries.DIALOG_BODY_TYPE)
 
         for (dialogType in registry.stream()) {
             val id = registry.getId(dialogType)

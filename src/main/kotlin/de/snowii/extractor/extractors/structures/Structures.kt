@@ -18,7 +18,7 @@ class Structures : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val finalJson = JsonObject()
         val registry =
-            server.registryAccess().getOrThrow(Registries.STRUCTURE).value()
+            server.registryAccess().lookupOrThrow(Registries.STRUCTURE)
         for (setting in registry) {
             finalJson.add(
                 registry.getKey(setting).toString(),

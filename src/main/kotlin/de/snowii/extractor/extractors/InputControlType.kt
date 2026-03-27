@@ -14,7 +14,7 @@ class InputControlType : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val InputControlTypeJson = JsonObject()
         val registry =
-            server.registryAccess().getOrThrow(Registries.INPUT_CONTROL_TYPE).value()
+            server.registryAccess().lookupOrThrow(Registries.INPUT_CONTROL_TYPE)
 
         for (inputControlType in registry.stream()) {
             val id = registry.getId(inputControlType)

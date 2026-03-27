@@ -16,7 +16,7 @@ class PlacedFeatures : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val finalJson = JsonObject()
         val registry =
-            server.registryAccess().getOrThrow(Registries.PLACED_FEATURE).value()
+            server.registryAccess().lookupOrThrow(Registries.PLACED_FEATURE)
         for (setting in registry) {
             finalJson.add(
                 registry.getKey(setting)!!.path,

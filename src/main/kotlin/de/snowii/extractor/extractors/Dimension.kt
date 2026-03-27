@@ -16,7 +16,7 @@ class Dimension : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val finalJson = JsonObject()
         val registry =
-            server.registryAccess().getOrThrow(Registries.DIMENSION_TYPE).value()
+            server.registryAccess().lookupOrThrow(Registries.DIMENSION_TYPE)
 
         for (setting in registry) {
             finalJson.add(

@@ -15,7 +15,7 @@ class JukeboxSong : Extractor.Extractor {
     override fun extract(server: MinecraftServer): JsonElement {
         val finalJson = JsonObject()
         val registry =
-            server.registryAccess().getOrThrow(Registries.JUKEBOX_SONG).value()
+            server.registryAccess().lookupOrThrow(Registries.JUKEBOX_SONG)
         for (setting in registry) {
             finalJson.addProperty(
                 registry.getKey(setting)!!.path,
